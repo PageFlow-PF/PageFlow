@@ -3,11 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boekenlijst</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>PageFlow - Boekenlijst</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        :root {
+            --primary-color: #007BFF;
+            --secondary-color: #6c757d;
+            --background-color: #1e1e2f;
+            --card-background: linear-gradient(135deg, #2a2a3b, #3b3b5b);
+            --text-color: white;
+            --error-color: #dc3545;
+            --success-color: #28a745;
+            --hover-effect: scale(1.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: var(--background-color);
+            color: var(--text-color);
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        h1 .logo {
+            font-size: 40px;
+        }
+
+        .search-container, .category-container {
+            margin-bottom: 20px;
+        }
+
+        #search, #categoryFilter {
+            width: 80%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            outline: none;
+            background: #2a2a3b;
+            color: var(--text-color);
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #search:focus, #categoryFilter:focus {
+            transform: var(--hover-effect);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .category-section {
+            margin-bottom: 40px;
+        }
+
+        .category-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            text-align: left;
+            padding-left: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .book-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .book {
+            background: var(--card-background);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            width: 300px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .book img {
+            width: 100%;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .book img:hover {
+            transform: var(--hover-effect);
+        }
+
+        .book h2 {
+            font-size: 18px;
+            margin: 10px 0;
+            font-weight: 400;
+        }
+
+        .book button {
+            background: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+            transition: background 0.3s ease, transform 0.2s ease;
+            margin: 5px 0;
+        }
+
+        .book button:hover {
+            background: #0056b3;
+            transform: var(--hover-effect);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>📚 Moderne Boekenlijst</h1>
+    <h1><span class="logo">📚</span> PageFlow</h1>
     <div class="search-container">
         <input type="text" id="search" placeholder="Zoek een boek..." onkeyup="searchBooks()">
     </div>
@@ -17,9 +151,139 @@
             <option value="Literatuur">📖 Literatuur</option>
             <option value="Science Fiction">🚀 Science Fiction</option>
             <option value="Non-Fictie">📘 Non-Fictie</option>
+            <option value="Thriller">🔪 Thriller</option>
+            <option value="Fantasy">🐉 Fantasy</option>
+            <option value="Romantiek">💖 Romantiek</option>
+            <option value="Geschiedenis">📜 Geschiedenis</option>
+            <option value="Zelfhulp">🧠 Zelfhulp</option>
+            <option value="Kinderboeken">🧸 Kinderboeken</option>
+            <option value="Poëzie">📜 Poëzie</option>
         </select>
     </div>
     <div id="book-list" class="book-container"></div>
-    <script type="module" src="public.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBAKE4dopleQro-BIASM8v-KG_VnYmc_4c",
+            authDomain: "pageflow-609fa.firebaseapp.com",
+            projectId: "pageflow-609fa",
+            storageBucket: "pageflow-609fa.appspot.com",
+            messagingSenderId: "66179754558",
+            appId: "1:66179754558:web:2d6a0da33f77718dfc7f6f",
+            measurementId: "G-WH5RKEY1EV"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let booksArray = [];
+
+        // Functie om boeken op te halen
+        async function getBooks() {
+            const bookList = document.getElementById("book-list");
+            bookList.innerHTML = "";
+
+            try {
+                const booksRef = collection(db, "books");
+                const snapshot = await getDocs(booksRef);
+
+                if (snapshot.empty) {
+                    bookList.innerHTML = "<p>Geen boeken gevonden.</p>";
+                    return;
+                }
+
+                booksArray = []; // Reset de boekenarray
+
+                snapshot.forEach(doc => {
+                    const bookData = doc.data();
+                    if (!bookData.downloadLink) {
+                        console.warn("⚠️ Geen downloadLink gevonden voor", bookData.title);
+                        return;
+                    }
+
+                    booksArray.push({ id: doc.id, ...bookData }); // Voeg boek toe aan de array
+                });
+
+                // Toon alle boeken bij het laden van de pagina
+                displayBooks(booksArray);
+
+            } catch (error) {
+                console.error("🔥 Fout bij het ophalen van boeken:", error);
+                bookList.innerHTML = "<p>Er is een fout opgetreden bij het laden van de boeken.</p>";
+            }
+        }
+
+        // Functie om boeken weer te geven
+        function displayBooks(books) {
+            const bookList = document.getElementById("book-list");
+            bookList.innerHTML = "";
+
+            // Groepeer boeken per categorie
+            const booksByCategory = {};
+
+            books.forEach(book => {
+                if (!booksByCategory[book.category]) {
+                    booksByCategory[book.category] = [];
+                }
+                booksByCategory[book.category].push(book);
+            });
+
+            // Toon boeken per categorie
+            for (const category in booksByCategory) {
+                // Maak een sectie voor de categorie
+                const categorySection = document.createElement("div");
+                categorySection.classList.add("category-section");
+
+                // Voeg de categorie-titel toe
+                const categoryTitle = document.createElement("h2");
+                categoryTitle.textContent = category;
+                categoryTitle.classList.add("category-title");
+                categorySection.appendChild(categoryTitle);
+
+                // Voeg de boeken toe
+                const booksContainer = document.createElement("div");
+                booksContainer.classList.add("book-container");
+
+                booksByCategory[category].forEach(book => {
+                    const bookElement = document.createElement("div");
+                    bookElement.classList.add("book");
+
+                    bookElement.innerHTML = `
+                        <img src="${book.coverUrl}" alt="Boek Cover">
+                        <h2>${book.title}</h2>
+                        <button onclick="window.open('${book.downloadLink}', '_blank')">
+                            📥 Download het boek
+                        </button>
+                    `;
+
+                    booksContainer.appendChild(bookElement);
+                });
+
+                categorySection.appendChild(booksContainer);
+                bookList.appendChild(categorySection);
+            }
+        }
+
+        // 🔍 Zoek- en filterfunctionaliteit
+        window.searchBooks = function () {
+            const searchTerm = document.getElementById("search").value.toLowerCase();
+            const selectedCategory = document.getElementById("categoryFilter").value;
+
+            // Filter de boeken op zoekterm en categorie
+            const filteredBooks = booksArray.filter(book => {
+                const matchesSearchTerm = book.title.toLowerCase().includes(searchTerm);
+                const matchesCategory = selectedCategory === "all" || book.category === selectedCategory;
+                return matchesSearchTerm && matchesCategory;
+            });
+
+            // Toon de gefilterde boeken
+            displayBooks(filteredBooks);
+        };
+
+        // Boeken ophalen bij het laden van de pagina
+        getBooks();
+    </script>
 </body>
 </html>
